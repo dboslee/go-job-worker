@@ -51,6 +51,13 @@ func (s *Stream) Subscribe(ch chan []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Prevent subscribing more than once
+	for _, sub := range s.subs {
+		if sub == ch {
+			return
+		}
+	}
+
 	// Close the channel immediately if the stream is closed
 	if s.closed {
 		close(ch)
@@ -70,6 +77,7 @@ func (s *Stream) Unsubscribe(ch chan []byte) {
 		// Reslice and close
 		s.subs = append(s.subs[:i], s.subs[i+1:]...)
 		close(ch)
+		break
 	}
 }
 
@@ -115,5 +123,5 @@ func (s *Stream) Close() {
 	for _, ch := range s.subs {
 		close(ch)
 	}
-	s.subs = make([]chan []byte, 1)
+	s.subs = make([]chan []byte, 0)
 }
