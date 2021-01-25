@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"io"
 	"sync"
 )
@@ -103,6 +104,9 @@ func (s *Stream) Pipe(r io.Reader) {
 
 		// Close the stream on EOF
 		if err != nil {
+			if err != io.EOF {
+				fmt.Println("unexpected error", err)
+			}
 			s.Close()
 			return
 		}
