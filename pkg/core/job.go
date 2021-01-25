@@ -76,11 +76,7 @@ func (j *Job) Kill() error {
 
 // Start runs a job and handles errors
 func (j *Job) Start() error {
-	done := make(chan error)
-	go func() {
-		done <- j.run()
-	}()
-	err := <-done
+	err := j.run()
 	j.UpdateError(err)
 	return err
 }
