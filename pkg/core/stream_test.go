@@ -55,3 +55,9 @@ func TestClose(t *testing.T) {
 		t.Errorf("expected channel to be closed")
 	}
 }
+
+func TestPublishAfterClose(t *testing.T) {
+	stream := core.NewStream()
+	stream.Close()
+	stream.Publish(want)
+}
