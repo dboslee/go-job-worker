@@ -22,7 +22,7 @@ func TestError(t *testing.T) {
 	job := core.NewJob("test-client", "")
 	job.Start()
 	if err := job.Error(); err == nil {
-		fmt.Println("expected error")
+		t.Errorf("expected error")
 	}
 }
 
