@@ -1,6 +1,8 @@
 package core
 
 import (
+	"io"
+	"log"
 	"os"
 	"os/exec"
 	"sync"
@@ -8,37 +10,46 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// JobStatus represents the current status of a job
+type JobStatus int
+
+const (
+	// Pending is the initial status when a job is created
+	Pending JobStatus = iota
+	// Running is assigned once a job is started
+	Running
+	// Complete is the status when a job exits without errors
+	Complete
+	// Error is the status when an error occurs
+	Error
+)
+
 // Job provides a simple interface for job access and management
 type Job struct {
 	ID        string
 	ClientID  string
 	Cmd       *exec.Cmd
-	OutStream *Stream
-	ErrStream *Stream
-	output    []byte
+	OutputBuf *OutputBuffer
+	status    JobStatus
 	err       error
 	mu        sync.RWMutex
 }
 
 // NewJob creates a new job instance
-func NewJob(clientID string, command string, args ...string) *Job {
+func NewJob(clientID string, command string, args ...string) (*Job, error) {
 	id := uuid.NewV4().String()
+	outputBuf, err := NewOutputBuffer()
+	if err != nil {
+		return nil, err
+	}
 
 	return &Job{
 		ID:        id,
 		ClientID:  clientID,
 		Cmd:       exec.Command(command, args...),
-		OutStream: NewStream(),
-		ErrStream: NewStream(),
-	}
-}
-
-// Exited returns whether the job has exited
-func (j *Job) Exited() bool {
-	if j.Cmd.ProcessState == nil {
-		return false
-	}
-	return j.Cmd.ProcessState.Exited()
+		status:    Pending,
+		OutputBuf: outputBuf,
+	}, nil
 }
 
 // ExitCode returns a jobs exit code
@@ -64,6 +75,20 @@ func (j *Job) UpdateError(err error) {
 	j.err = err
 }
 
+// Status returns the status of a job
+func (j *Job) Status() JobStatus {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+	return j.status
+}
+
+// UpdateStatus updates a jobs err
+func (j *Job) UpdateStatus(status JobStatus) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	j.status = status
+}
+
 // Interrupt sends a SIGINT to the process
 func (j *Job) Interrupt() error {
 	return j.Cmd.Process.Signal(os.Interrupt)
@@ -77,13 +102,22 @@ func (j *Job) Kill() error {
 // Start runs a job and handles errors
 func (j *Job) Start() error {
 	err := j.run()
-	j.UpdateError(err)
-	return err
+
+	if err != nil {
+		log.Print(err)
+		j.UpdateError(err)
+		j.UpdateStatus(Error)
+		return err
+	}
+
+	j.UpdateStatus(Complete)
+	return nil
 }
 
 // Run executes the job and updates its state
 func (j *Job) run() error {
 	cmd := j.Cmd
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -93,56 +127,49 @@ func (j *Job) run() error {
 		return err
 	}
 
-	// Setup streams for output
-	go j.OutStream.Pipe(stdout)
-	go j.ErrStream.Pipe(stderr)
-
-	mergedOutput := make(chan []byte, 64)
-	go MergeStreams(mergedOutput, j.OutStream, j.ErrStream)
-
-	// Start the job
+	output := io.MultiReader(stdout, stderr)
 	err = cmd.Start()
 	if err != nil {
 		return err
 	}
+	j.UpdateStatus(Running)
 
-	// Send on done when cmd exits
-	done := make(chan error)
-	go func() {
-		done <- cmd.Wait()
-	}()
+	err = j.writeOutput(output)
 
-	// Read output while the channel is open
-	// Return when done
+	// If we hit an error after the job starts we can kill and
+	if err != nil {
+		j.Kill()
+		return err
+	}
+
+	return cmd.Wait()
+}
+
+// writeOutput writes the output to the output buffer
+// This should only be called once per job
+func (j *Job) writeOutput(r io.Reader) error {
+
+	w, err := j.OutputBuf.NewWriter()
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	b := make([]byte, 1024)
+
+	// Loop until io.EOF or other error
 	for {
-		select {
-		case data, ok := <-mergedOutput:
-			if !ok {
-				mergedOutput = nil
-				break
-			}
-			j.AppendOutput(data)
-		case err := <-done:
+		// Read from output
+		n, err := r.Read(b)
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+
+		// Write
+		_, err = w.Write(b[:n])
+		if err != nil {
 			return err
 		}
 	}
-
-}
-
-// AppendOutput appends bytes to a jobs output
-func (j *Job) AppendOutput(b []byte) {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-	j.output = append(j.output, b...)
-}
-
-// Output returns a jobs output and a channel to stream output from
-// If a job has already finished the channel will be closed
-func (j *Job) Output() ([]byte, chan []byte) {
-	j.mu.RLock()
-	defer j.mu.RUnlock()
-	ch := make(chan []byte, 64)
-	MergeStreams(ch, j.OutStream, j.ErrStream)
-
-	return j.output, ch
 }

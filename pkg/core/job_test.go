@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewJobID(t *testing.T) {
-	job := core.NewJob("test-client", "")
+	job, _ := core.NewJob("test-client", "")
 
 	if job.ID == "" {
 		t.Errorf("expected non empty string")
@@ -19,22 +19,23 @@ func TestNewJobID(t *testing.T) {
 }
 
 func TestError(t *testing.T) {
-	job := core.NewJob("test-client", "")
+	job, _ := core.NewJob("test-client", "")
+	job.Cmd = mockExec("")
 	job.Start()
 	if err := job.Error(); err == nil {
 		t.Errorf("expected error")
 	}
 }
 
-func TestExited(t *testing.T) {
-	job := core.NewJob("test-client", "exit", "0")
+func TestStatus(t *testing.T) {
+	job, _ := core.NewJob("test-client", "exit", "0")
 	job.Cmd = mockExec("exit", "0")
-	if job.Exited() {
-		t.Errorf("unexpected exit")
+	if job.Status() != core.Pending {
+		t.Errorf("unexpected job state want: %d got: %d", core.Pending, job.Status())
 	}
 	job.Start()
-	if !job.Exited() {
-		t.Errorf("expected exit")
+	if job.Status() != core.Complete {
+		t.Errorf("unexpected job state want: %d got: %d", core.Pending, job.Status())
 	}
 }
 
@@ -50,7 +51,7 @@ func TestExitCode(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		job := core.NewJob("test-client", tc.command, tc.args...)
+		job, _ := core.NewJob("test-client", tc.command, tc.args...)
 		job.Cmd = mockExec(tc.command, tc.args...)
 		job.Start()
 		if code := job.ExitCode(); code != tc.code {
@@ -69,11 +70,15 @@ func TestOutput(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		job := core.NewJob("test-client", tc.command, tc.args...)
+		job, _ := core.NewJob("test-client", tc.command, tc.args...)
 		job.Cmd = mockExec(tc.command, tc.args...)
 		job.Start()
-		if output, _ := job.Output(); string(output) != tc.output {
-			t.Errorf("output want: %v got: %v", tc.output, string(output))
+		r, _ := job.OutputBuf.NewReader()
+		b := make([]byte, 64)
+		n, _ := r.Read(b)
+		output := string(b[:n])
+		if output != tc.output {
+			t.Errorf("output want: %v got: %v", tc.output, output)
 		}
 	}
 }
