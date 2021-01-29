@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -91,11 +92,17 @@ func (j *Job) UpdateStatus(status JobStatus) {
 
 // Interrupt sends a SIGINT to the process
 func (j *Job) Interrupt() error {
+	if j.Cmd.Process == nil {
+		return fmt.Errorf("unable to interrupt nil process")
+	}
 	return j.Cmd.Process.Signal(os.Interrupt)
 }
 
 // Kill sends a SIGKILL to the process.
 func (j *Job) Kill() error {
+	if j.Cmd.Process == nil {
+		return fmt.Errorf("unable to kill nil process")
+	}
 	return j.Cmd.Process.Signal(os.Kill)
 }
 
