@@ -25,6 +25,20 @@ const (
 	Error
 )
 
+// String is a convienient way to convert a job status to string
+func (js JobStatus) String() string {
+	switch js {
+	case Running:
+		return "running"
+	case Complete:
+		return "complete"
+	case Error:
+		return "error"
+	default:
+		return "pending"
+	}
+}
+
 // Job provides a simple interface for job access and management
 type Job struct {
 	ID        string
