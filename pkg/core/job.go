@@ -134,42 +134,14 @@ func (j *Job) run() error {
 	}
 	j.UpdateStatus(Running)
 
-	err = j.writeOutput(output)
-
-	// If we hit an error after the job starts we can kill and
+	w, err := j.OutputBuf.NewWriter()
 	if err != nil {
-		j.Kill()
-		return err
+		log.Printf("unable to open log writer %v", err)
+	}
+	_, err = io.Copy(w, output)
+	if err != nil {
+		log.Printf("unable to copy output to log %v", err)
 	}
 
 	return cmd.Wait()
-}
-
-// writeOutput writes the output to the output buffer
-// This should only be called once per job
-func (j *Job) writeOutput(r io.Reader) error {
-
-	w, err := j.OutputBuf.NewWriter()
-	if err != nil {
-		return err
-	}
-	defer w.Close()
-	b := make([]byte, 1024)
-
-	// Loop until io.EOF or other error
-	for {
-		// Read from output
-		n, err := r.Read(b)
-		if err == io.EOF {
-			return nil
-		} else if err != nil {
-			return err
-		}
-
-		// Write
-		_, err = w.Write(b[:n])
-		if err != nil {
-			return err
-		}
-	}
 }
