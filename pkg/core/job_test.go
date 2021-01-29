@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/dboslee/job-worker/pkg/core"
 )
@@ -83,6 +84,25 @@ func TestOutput(t *testing.T) {
 	}
 }
 
+func TestInterrupt(t *testing.T) {
+	job, _ := core.NewJob("test-client", "sleep", "5")
+	job.Cmd = mockExec("sleep", "5")
+	done := make(chan error)
+	go func() {
+		done <- job.Start()
+	}()
+
+	for status := job.Status(); status == core.Pending; status = job.Status() {
+	}
+	err := job.Kill()
+	if err != nil {
+	}
+	err = <-done
+	if status := job.Status(); status != core.Error {
+		t.Errorf("unexpected status got: %d, want: %d", status, core.Error)
+	}
+}
+
 func TestHelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
@@ -109,6 +129,9 @@ func TestHelperProcess(t *testing.T) {
 	case "exit":
 		n, _ := strconv.Atoi(args[0])
 		os.Exit(n)
+	case "sleep":
+		n, _ := strconv.Atoi(args[0])
+		time.Sleep(time.Second * time.Duration(n))
 	default:
 		fmt.Fprintf(os.Stderr, "No such command %q\n", cmd)
 		os.Exit(2)
