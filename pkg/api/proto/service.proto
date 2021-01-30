@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package proto;
+
+message ExecRequest {
+    string command = 1;
+    repeated string args = 2;
+}
+
+message ExecResponse {
+    string id = 1;
+}
+
+message StopRequest {
+    string id = 1;
+}
+
+message StopResponse {
+    bool success = 1;
+}
+
+message StatusRequest {
+    string id = 1;
+}
+
+message StatusResponse {
+    string status = 1;
+    int64 exit_code = 2;
+    string error = 3;
+}
+
+message LogRequest {
+    string id = 1;
+}
+
+message LogResponse {
+    bytes log = 1;
+}
+
+service JobService {
+    // Exec executes an arbitrary command
+    rpc Exec(ExecRequest) returns (ExecResponse);
+    // Stop sends a signal to stop a command
+    rpc Stop(StopRequest) returns (StopResponse);
+    // Status gets the status for a command
+    rpc Status(StatusRequest) returns (StatusResponse);
+    // Logs streams the output of a command
+    rpc Logs(LogRequest) returns (stream LogResponse);
+}
