@@ -30,4 +30,4 @@ vendor:
 
 .PHONY:
 clean-output:
-	@rm -f /tmp/job-worker-output-*
+	@rm -rf /tmp/job-worker-output-*
