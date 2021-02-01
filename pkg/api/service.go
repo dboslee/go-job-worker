@@ -73,17 +73,24 @@ func (js *JobService) Stop(ctx context.Context, req *proto.StopRequest) (resp *p
 		return nil, err
 	}
 
+	errNotRunning := status.Error(codes.FailedPrecondition, "unable to stop job thats not running")
+
 	if job.Status() != core.Running {
-		return nil, status.Error(codes.FailedPrecondition, "unable to stop job thats not running")
+		return nil, errNotRunning
+	}
+
+	err = job.Interrupt()
+	if err != nil {
+		s := job.Status()
+		if s != core.Running {
+			return nil, errNotRunning
+		}
+
+		log.Printf("error during interrupt %v", err)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	resp = &proto.StopResponse{Success: true}
-	err = job.Interrupt()
-	if err != nil {
-		log.Printf("error during interrupt %v", err)
-		resp.Success = false
-		return resp, status.Error(codes.Internal, "failed to stop job")
-	}
 	return resp, nil
 }
 
