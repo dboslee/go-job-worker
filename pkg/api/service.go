@@ -105,7 +105,7 @@ func (js *JobService) Status(ctx context.Context, req *proto.StatusRequest) (res
 	resp = &proto.StatusResponse{
 		Status: s.String(),
 	}
-	if s <= core.Running {
+	if s == core.Running || s == core.Pending {
 		return resp, nil
 	}
 
@@ -150,7 +150,7 @@ func (js *JobService) Logs(req *proto.LogRequest, serv proto.JobService_LogsServ
 
 		// Read the output until we hit io.EOF and the job has exited
 		n, err := r.Read(b)
-		if err == io.EOF && status > core.Running {
+		if err == io.EOF && (status == core.Complete || status == core.Error) {
 			return nil
 		} else if err == io.EOF {
 			<-tick.C
