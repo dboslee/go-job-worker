@@ -24,6 +24,7 @@ func NewOutputBuffer() (*OutputBuffer, error) {
 	if err != nil {
 		return nil, err
 	}
+	f.Close()
 
 	return &OutputBuffer{name: f.Name()}, nil
 }
