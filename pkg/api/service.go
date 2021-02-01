@@ -145,6 +145,10 @@ func (js *JobService) Logs(req *proto.LogRequest, serv proto.JobService_LogsServ
 			return readErr
 		}
 		resp.Log = b[:n]
-		serv.Send(resp)
+
+		err = serv.Send(resp)
+		if err != nil {
+			return err
+		}
 	}
 }
