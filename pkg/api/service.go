@@ -126,6 +126,7 @@ func (js *JobService) Logs(req *proto.LogRequest, serv proto.JobService_LogsServ
 		log.Printf("error getting reader %v", err)
 		return readErr
 	}
+	defer r.Close()
 
 	tick := time.NewTicker(time.Millisecond * 100)
 	resp := &proto.LogResponse{}
