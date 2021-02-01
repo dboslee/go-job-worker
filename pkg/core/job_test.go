@@ -94,12 +94,27 @@ func TestInterrupt(t *testing.T) {
 
 	for status := job.Status(); status == core.Pending; status = job.Status() {
 	}
-	err := job.Kill()
-	if err != nil {
+	if err := job.Interrupt(); err != nil {
+		t.Errorf("unexpected error %v", err)
 	}
-	err = <-done
+
+	<-done
 	if status := job.Status(); status != core.Error {
 		t.Errorf("unexpected status got: %d, want: %d", status, core.Error)
+	}
+}
+
+func TestInterruptAfterExit(t *testing.T) {
+	job, _ := core.NewJob("test-client", "exit", "0")
+	job.Cmd = mockExec("exit", "0")
+	done := make(chan error)
+	go func() {
+		done <- job.Start()
+	}()
+	<-done
+	err := job.Interrupt()
+	if err == nil {
+		t.Errorf("unexpected err but got nil")
 	}
 }
 
