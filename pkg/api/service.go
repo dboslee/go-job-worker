@@ -134,6 +134,13 @@ func (js *JobService) Logs(req *proto.LogRequest, serv proto.JobService_LogsServ
 	b := make([]byte, 1024*4)
 	for {
 		status := job.Status()
+
+		// If there is a context error return
+		if err = serv.Context().Err(); err != nil {
+			return err
+		}
+
+		// Read the output until we hit io.EOF and the job has exited
 		n, err := r.Read(b)
 		if err == io.EOF && status > core.Running {
 			return nil
