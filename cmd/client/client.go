@@ -34,9 +34,10 @@ func main() {
 	jobServiceClient := proto.NewJobServiceClient(conn)
 	cliClient := cli.NewClient(ctx, jobServiceClient)
 
-	code, err := cliClient.HandleArgs(os.Args)
+	err = cliClient.HandleArgs(os.Args)
 	if err != nil {
 		log.Print(err)
+		os.Exit(1)
 	}
-	os.Exit(code)
+	os.Exit(0)
 }

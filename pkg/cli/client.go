@@ -25,12 +25,12 @@ func NewClient(ctx context.Context, jobService proto.JobServiceClient) *Client {
 
 // HandleArgs expects the command-line arguments starting with the program name
 // and calls the corresponding subcommand or returns an error
-func (c *Client) HandleArgs(args []string) (code int, err error) {
+func (c *Client) HandleArgs(args []string) error {
 	switch len(args) {
 	case 0:
-		return 1, fmt.Errorf("unknown command")
+		return fmt.Errorf("unknown command")
 	case 1:
-		return 1, fmt.Errorf("subcommand required")
+		return fmt.Errorf("subcommand required")
 	}
 
 	subcommand := args[1]
@@ -44,15 +44,15 @@ func (c *Client) HandleArgs(args []string) (code int, err error) {
 	case "logs":
 		return c.logs(args[2:])
 	default:
-		return 1, fmt.Errorf("unknown subcommand %v", subcommand)
+		return fmt.Errorf("unknown subcommand %v", subcommand)
 	}
 
 }
 
 // exec calls the exec rpc and outputs the job id
-func (c *Client) exec(args []string) (code int, err error) {
+func (c *Client) exec(args []string) error {
 	if len(args) == 0 {
-		return 1, fmt.Errorf("must provide a command to execute")
+		return fmt.Errorf("must provide a command to execute")
 	}
 	req := &proto.ExecRequest{
 		Command: args[0],
@@ -60,66 +60,66 @@ func (c *Client) exec(args []string) (code int, err error) {
 	}
 	resp, err := c.jobService.Exec(c.ctx, req)
 	if err != nil {
-		return 1, err
+		return err
 	}
 	log.Print(resp.GetId())
-	return 0, nil
+	return nil
 }
 
 // status calls the status rpc and outputs the status
-func (c *Client) status(args []string) (code int, err error) {
+func (c *Client) status(args []string) error {
 	if len(args) == 0 {
-		return 1, fmt.Errorf("must provide a job ID")
+		return fmt.Errorf("must provide a job ID")
 	}
 	req := &proto.StatusRequest{
 		Id: args[0],
 	}
 	resp, err := c.jobService.Status(c.ctx, req)
 	if err != nil {
-		return 1, err
+		return err
 	}
 	log.Printf("Status: %v", resp.GetStatus())
 	log.Printf("ExitCode: %v", resp.GetExitCode())
 	log.Printf("Error: %v", resp.GetError())
-	return 0, nil
+	return nil
 }
 
 // stop calls the stop rpc
-func (c *Client) stop(args []string) (code int, err error) {
+func (c *Client) stop(args []string) error {
 	if len(args) == 0 {
-		return 1, fmt.Errorf("must provide a job ID")
+		return fmt.Errorf("must provide a job ID")
 	}
 	req := &proto.StopRequest{
 		Id: args[0],
 	}
 
 	// There should be an error if anything goes wrong so we don't really need to check the response
-	_, err = c.jobService.Stop(c.ctx, req)
+	_, err := c.jobService.Stop(c.ctx, req)
 	if err != nil {
-		return 1, err
+		return err
 	}
-	return 0, nil
+	return nil
 }
 
 // logs calls the logs rpc to stream the output of a job
-func (c *Client) logs(args []string) (code int, err error) {
+func (c *Client) logs(args []string) error {
 	if len(args) == 0 {
-		return 1, fmt.Errorf("must provide a job ID")
+		return fmt.Errorf("must provide a job ID")
 	}
 	req := &proto.LogRequest{
 		Id: args[0],
 	}
 	stream, err := c.jobService.Logs(c.ctx, req)
 	if err != nil {
-		return 1, err
+		return err
 	}
 
 	for {
 		resp, err := stream.Recv()
 		if err == io.EOF {
-			return 0, nil
+			return nil
 		} else if err != nil {
-			return 1, err
+			return err
 		}
 		log.Print(string(resp.GetLog()))
 	}
