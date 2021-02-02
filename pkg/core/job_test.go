@@ -107,11 +107,8 @@ func TestInterrupt(t *testing.T) {
 func TestInterruptAfterExit(t *testing.T) {
 	job, _ := core.NewJob("test-client", "exit", "0")
 	job.Cmd = mockExec("exit", "0")
-	done := make(chan error)
-	go func() {
-		done <- job.Start()
-	}()
-	<-done
+	job.Start()
+
 	err := job.Interrupt()
 	if err == nil {
 		t.Errorf("unexpected err but got nil")
