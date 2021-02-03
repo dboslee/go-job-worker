@@ -103,7 +103,8 @@ func (js *JobService) Status(ctx context.Context, req *proto.StatusRequest) (res
 
 	s := job.Status()
 	resp = &proto.StatusResponse{
-		Status: s.String(),
+		Status:   s.String(),
+		ExitCode: -1,
 	}
 	if s == core.Running || s == core.Pending {
 		return resp, nil
