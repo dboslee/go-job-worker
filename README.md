@@ -27,7 +27,14 @@ make certs
 ./client logs <id>              # Stream the output of a job
 ```
 
-Note: The server and client are hardcoded to communicate on port 8888
+Note: 
 
 ## Testing
 ```make test```
+
+## Additional Notes
+The server and client are hardcoded to communicate on port 8888.
+
+Although clients are only authorized to access their own jobs through the api this project does not provide any further isolation. Namespaces could be used for better isolation.
+
+This project does not impose any limit on the number of concurrent jobs, the duration of a job, or the resources consumed by a job. A fixed size worker pool, deadlines, and cgroups could be used respectively to enforce these limits.
